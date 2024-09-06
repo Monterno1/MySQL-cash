@@ -1,3 +1,6 @@
+//============================= Инклуды / Дополнения ===========================
+//============================= Для кода мода PAWNO.============================
+//------------------------------------------------------------------------------
 #include <a_samp>
 #include <fix>
 #include <a_mysql>
@@ -10,16 +13,26 @@
 #include <string>
 
 #pragma tabsize 0
-
+//================================ MySQL Настройки =============================
+//------------------------------------------------------------------------------
 #define     MySQL_HOST "localhost"
 #define     MySQL_USER "root"
 #define     MySQL_PASS ""
 #define     MySQL_BASE "project"
-
+//=================== Отправка игрокам сообщений в чате ========================
+//------------------------------------------------------------------------------
 #define SCM SendClientMessage
 #define SCMTA SendClientMessageToAll
 #define SPD ShowPlayerDialog
+//==============================PLAYERS TEAMS===================================
+#define TEAM_GOV_COLOR 0x00000000
+#define TEAM_GOV 1
+#define TEAM_CIT 2
+#define TEAM_TFC 3
+//------------------------------------------------------------------------------
 
+// ================================ ЦВЕТА ======================================
+//------------------------------------------------------------------------------
 #define COLOR_WHITE 0xFFFFFFFF
 #define COLOR_GREY 0xAFAFAFAA
 #define COLOR_YELLOW 0xFFFF00AA
@@ -73,6 +86,10 @@
 #define COLOR_GRAD3 0xCBCCCEFF
 #define COLOR_GRAD5 0xE3E3E3FF
 #define COLOR_GRAD1 0xB4B5B7FF
+//1-playerid, 2-string
+#define SCMerror(%0,%1) SCM(%0, COLOR_RED, %1), PlayerPlaySound(%0, 1085, 0.0, 0.0, 0.0)
+#define SCMnotification(%0,1) SCM(%0, СOLOR_ORANGE %1), PlayerPlaySound(%0, 1085, 0.0, 0.0, 0.0)
+//=====================Сообщение при запуске сервера============================
 
 main()
 {
@@ -81,11 +98,11 @@ main()
 	print("----------------------------------\n");
 }
 
-//====================================TRASH HOLDER==============================
+//====================================Новые переменные==========================
 new MySQL:dbHandle;
 new PlayerAFK[MAX_PLAYERS];
-//------------------------------------ MYSQL-----------------------------------
-
+new gTeam[MAX_PLAYERS];
+//------------------------------------ КОМАНДЫ----------------------------------
 
 enum player
 {
@@ -99,6 +116,8 @@ enum player
 	SKIN,
 	ADMIN,
 	CASH,
+	SCORE,
+	MINS,
  }
  new player_info [MAX_PLAYERS] [player];
  
@@ -109,13 +128,28 @@ enum player
 	DLG_REGEMAIL,
 	DLG_LOG,
 	DLG_REGREF,
+	DLG_MAINMENU,
+	DLG_STATS,
+	DLG_SECURE,
+	DLG_NEWPASS1,
+	DLG_NEWPASS2,
  }
 
 public OnGameModeInit()
 {
+//============================СПАВН АВТО========================================
+AddStaticVehicle(579, 41.0162,-230.4278,1.7055,238.5714, 0, 0);
+AddStaticVehicle (583,-538.1408,-176.2944,78.4047,183.2558, 1 , 1); //==TFC 1
+AddStaticVehicle (574, -533.3787,-176.4845,78.4047,176.8558, 1, 1); //==TFC 2
+AddStaticVehicle (598, 48.3826,-261.1694,1.7073,266.8851, 1, 0); //==GOV 1
+AddStaticVehicle (579, 49.9297,-253.5967,1.5781,270.2143, 0, 0); //==GOV 2
+AddStaticVehicle (402, 1291.0356,188.3299,20.3708,148.6082, 175, 1); //==CIT 1
+AddStaticVehicle (415, 1283.0035,192.6987,19.9193,159.7708, 6,6); //==CIT 2
+//==============================================================================
 	ConnectMySQL();
 	
 	SetTimer("SecondUpdate", 1000, true);
+	SetTimer("MinuteUpdate", 60000, true);
 	return 1;
 }
 
@@ -136,7 +170,31 @@ public OnGameModeExit()
 {
 	return 1;
 }
-
+forward MinuteUpdate();
+public MinuteUpdate()
+{
+foreach(new i:Player)
+{
+	if(PlayerAFK[i] < 2)
+	{
+	    player_info[i][MINS]++;
+		if(player_info[i][MINS]>=60)
+		{
+		player_info[i][MINS] = 0;
+		HourBonus(i);
+	}
+}
+		}
+	}
+	stock HourBonus(playerid)
+{
+PlayerPlaySound(playerid, 19800, 0.0, 0.0, 0.0);
+GameTextForPlayer(playerid, "Hour Bonus!", 2000, 3);
+SCM (playerid, COLOR_GREEN, "[ONLINE BONUS] {FFFFFF}You got bonus for being online for one hour!");
+SCM (playerid, COLOR_YELLOW, "[ONLINE BONUS] {FFFFFF} You received {dba212}50.000$ {ffffff}and {dba212}50 score!");
+GiveScore(playerid, 50);
+GiveMoney(playerid, 50000);
+}
 forward SecondUpdate();
 public SecondUpdate()
 {
@@ -157,18 +215,47 @@ public SecondUpdate()
 			    format(string, sizeof(string), "%s%d min. %d sec.", string, minute, second );
 			}
 			SetPlayerChatBubble(i, string, -1, 20, 1000);
-		}
+	}
 	}
 	return 1;
 }
+//=================================Выбор команды================================
+//------------------------------------------------------------------------------
 public OnPlayerRequestClass(playerid, classid)
 {
-	return 1;
+InterpolateCameraPos(playerid, 46.8919,-235.9144,1.5781, 46.8919,-235.9144,1.5781, 1000);
+{
+if(classid == 0)
+{
+SetPlayerSkin(playerid, 288);
+gTeam[playerid] = TEAM_GOV;
+GameTextForPlayer(playerid, "GOVERMENT", 1000, 3);
+SetPlayerPos(playerid,44.3483,-235.4430,1.6605);
+SetPlayerFacingAngle(playerid, 270.0176);
 }
 
+if(classid == 1)
+{
+SetPlayerSkin(playerid, 73);
+gTeam[playerid] = TEAM_CIT;
+GameTextForPlayer(playerid, "CITIZEN", 1000, 3);
+SetPlayerPos(playerid,44.3483,-235.4430,1.6605);
+SetPlayerFacingAngle(playerid, 270.0176);
+}
+if(classid == 2)
+{
+SetPlayerSkin(playerid, 78);
+gTeam[playerid] = TEAM_TFC;
+GameTextForPlayer(playerid, "FIFTH COLUMN", 1000, 3);
+SetPlayerPos(playerid,44.3483,-235.4430,1.6605);
+SetPlayerFacingAngle(playerid, 270.0176);
+}
+return 1;
+}
+}
+//====================Диалоги Регистрации и Логина==============================
 public OnPlayerConnect(playerid)
 {
-
 	GetPlayerName(playerid, player_info[playerid][NAME], MAX_PLAYER_NAME);
 	TogglePlayerSpectating(playerid, 1);
 	InterpolateCameraPos(playerid, -371.9478,1239.1519,30.7224,-618.3073,1185.9912,27.1245, 15000);
@@ -221,25 +308,53 @@ stock ShowRegistration(playerid)
 	);
 	SPD(playerid, DLG_REG, DIALOG_STYLE_INPUT, "{dba212}Registration • {FFFFFF}Create a new password", dialog, "Continue", "Exit");
 }
-
+//==============================================================================
 
 public OnPlayerDisconnect(playerid, reason)
 {
+	static const fmt_query[] = "UPDATE `players` SET `mins` = '%d' WHERE `id` = '%d'";
+	new query[sizeof(fmt_query)+(-2+2)+(-2+8)];
+	format(query, sizeof(query), fmt_query, player_info[playerid][MINS], player_info[playerid][ID]);
+	mysql_query(dbHandle, query, false);
 	return 1;
 }
-
+//============================ПРИ СПАВНЕ ИГРОКА=================================
+//==============================СПАВН КОМАНД====================================
 public OnPlayerSpawn(playerid)
+
 {
-	static const fmt_query2[] = "SELECT * FROM `players` WHERE `cash` = '%d' AND `id` = '%d', 0, 99999999";
+SetPlayerScore(playerid, player_info[playerid][SCORE]);
+if(gTeam[playerid] != TEAM_GOV && gTeam[playerid] != TEAM_CIT && gTeam[playerid] != TEAM_TFC)
+{
+    ForceClassSelection(playerid);
+ TogglePlayerSpectating(playerid, true);
+ TogglePlayerSpectating(playerid, false);
+}
+if (gTeam[playerid] == TEAM_GOV)
+{
+SetPlayerPos(playerid,65.5870,-274.4853,1.5781);
+SetPlayerFacingAngle(playerid, 356.9216);
+}
+if (gTeam[playerid] == TEAM_CIT)
+{
+SetPlayerPos(playerid,1288.9460,171.9863,20.4609);
+SetPlayerFacingAngle(playerid, 68.2691);
+}
+if (gTeam[playerid] == TEAM_TFC)
+{
+SetPlayerPos(playerid,-548.3193,-197.1760,78.4063);
+SetPlayerFacingAngle(playerid, 2.5233);
+}
+//============================ЗАПРОС ДЕНЕГ С БАЗЫ ДАННЫХ========================
+static const fmt_query2[] = "SELECT * FROM `players` WHERE `cash` = '%d' AND `id` = '%d', 0, 99999999";
 new query[sizeof(fmt_query2)+(-2+9)+(-2+8)];
 format(query, sizeof(query), fmt_query2, player_info[playerid][CASH], player_info[playerid][ID]);
 mysql_query(dbHandle, query);
 if(GetPVarInt(playerid, "logged") == 0)
 {
-SCM(playerid, COLOR_RED, "[ERROR]You have to register before playing.");
+SCMerror(playerid, "[ERROR]{ffffff}You have to register before playing.");
 return Kick(playerid);
 }
-
 	return 1;
 }
 
@@ -262,7 +377,7 @@ public OnPlayerText(playerid, text[])
 {
 if(GetPVarInt(playerid, "logged") == 0)
 {
-SCM(playerid, COLOR_RED, "[ERROR]You have to register use chat.");
+SCMerror(playerid, "[ERROR]{ffffff}You have to register use chat.");
 return Kick(playerid);
 }
 	new string[144];
@@ -283,8 +398,9 @@ return Kick(playerid);
 
 public OnPlayerCommandText(playerid, cmdtext[])
 {
-		return 1;
-		}
+
+return 0;
+}
 public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
 {
 	return 1;
@@ -427,12 +543,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		    	if(!strlen (inputtext))
  			  	{
 				    ShowRegistration(playerid);
-				    return SCM(playerid, COLOR_RED, "[WARNING] {FFFFFF}Create new password and press \"Continue\"");
+				    return SCMerror(playerid, "[WARNING] {FFFFFF}Create new password and press \"Continue\"");
 				}
 			if (strlen(inputtext) < 6 || strlen(inputtext) > 32)
 				{
-			ShowRegistration (playerid);
-			return SCM(playerid, COLOR_RED, "[WARNING] {FFFFFF}Password may contains 6 - 32 characters");
+			ShowRegistration (playerid); 
+			return SCMerror(playerid, "[WARNING]{FFFFFF}Password may contains 6 - 32 characters");
  				}
 				new regex:rg_passwordcheck = regex_new("^[a-zA-z0-9]{1,}$");
 				if (regex_check(inputtext, rg_passwordcheck))
@@ -440,7 +556,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				    new salt[11];
 				    for(new i; i < 11; i++)
 					{
-					    salt[i] = random (79) + 47;
+					    salt[i] = random (43) + 48;
 					}
 					salt[10] = 0;
 					SHA256_PassHash(inputtext, salt, player_info[playerid][PASSWORD], 65);
@@ -456,7 +572,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				{
 		  			ShowRegistration(playerid);
 		  			regex_delete(rg_passwordcheck);
-		    		return SCM(playerid, COLOR_RED, "[WARNING]{FFFFFF} Password may contains only 6 - 32 characters");
+		    		return SCMerror(playerid, "[WARNING]{FFFFFF}Password may contains 6 - 32 characters");
 					}
 	                regex_delete(rg_passwordcheck);
 				}
@@ -475,7 +591,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				"			         {FFFFFF}Enter your {473dff}e-mail {FFFFFF}adress\n\
 				{FFFFFF}If you lose {dba212}password {FFFFFF}or {dba212}name {FFFFFF}of your account there will be opportunity to bring it back",
 				"Continue", "");
-				return SCM(playerid, COLOR_RED, "[WARNING]{FFFFFF}Check your {473dff}e-mail {FFFFFF}adress before using it");
+				return SCMerror(playerid, "[WARNING]{FFFFFF}Check your {473dff}e-mail {FFFFFF}adress before using it");
 					}
 					new regex:rg_emailcheck = regex_new("^[a-zA-Z0-9.-_]{1,43}@[a-zA-Z]{1,12}.[a-zA-Z]{1,8}$");
 					if(regex_check(inputtext, rg_emailcheck))
@@ -512,7 +628,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
   {
     new checkpass[65];
 	SHA256_PassHash(inputtext, player_info[playerid][SALT], checkpass, 65);
-	if(strcmp(player_info[playerid][PASSWORD], checkpass, false, 64) == 0)
+	if(strcmp(player_info[playerid][PASSWORD], checkpass, false, 64) == 0 && !isnull(checkpass))
 	{
 	static const fmt_query[] = "SELECT * FROM `players` WHERE `name` = '%s' AND `password` = '%s'";
 	new query[sizeof(fmt_query)+(-2+MAX_PLAYER_NAME)+(-2+64)];
@@ -544,9 +660,88 @@ ShowLogin(playerid);
 			return Kick(playerid);
 		}
 	}
-}
-return 1;
+case DLG_MAINMENU:
+{
+	if(response)
+	{
+		switch(listitem)
+		{
+			case 0: ShowStats(playerid);
+			case 1: SPD(playerid, DLG_SECURE, DIALOG_STYLE_LIST, "{056600}Secure Settings", "[1]Change password", "Enter", "Back");
+				}
+			}
+		}
+	case DLG_STATS:
+	{
+		if(response) callcmd::menu(playerid);
+	}
+		case DLG_SECURE:
+		{
+		if(response)
+		{
+			switch(listitem)
+			{
+			    case 0:  SPD(playerid, DLG_NEWPASS1, DIALOG_STYLE_INPUT, "{056600}Password change.... launched", "{056600}Enter your {ffffff}previous {056600}password in the line below:", "Continue", "Close");
+				}
+			}
+		else callcmd::menu(playerid);
+	}
+	case DLG_NEWPASS1:
+	{
+	new checkpass[65];
+	SHA256_PassHash(inputtext, player_info[playerid][SALT], checkpass, 65);
+		if(strcmp(player_info[playerid][PASSWORD], checkpass, false, 64) == 0)
+	{
+        SPD(playerid, DLG_NEWPASS2, DIALOG_STYLE_INPUT, "{056600}Password change....", "{056600}Enter your {ffffff}new {056600}password in the line below:", "Continue", "Close");
+	}
+	else
+	{
+		SCM(playerid, COLOR_RED, "[WARNING] You used a wrong password.");
+		return SPD(playerid, DLG_NEWPASS1, DIALOG_STYLE_INPUT, "{056600}Password change.... launched", "{056600}Enter your {ffffff}previous {056600}password in the line below:", "Continue", "Close");
+			}
+		}
+	case DLG_NEWPASS2:
+	{
+	if(response)
+		{
+ 		if(!strlen (inputtext))		return SPD(playerid, DLG_NEWPASS1, DIALOG_STYLE_INPUT, "{056600}Password change.... launched", "{056600}Enter your {ffffff}previous {056600}password in the line below:", "Continue", "Close");
+		if (!(6 <=strlen(inputtext) <= 32))
+		{
+			SPD(playerid, DLG_NEWPASS1, DIALOG_STYLE_INPUT, "{056600}Password change.... launched", "{056600}Enter your {ffffff}previous {056600}password in the line below:", "Continue", "Close");
+			return SCM(playerid, COLOR_RED, "[WARNING] {ffffff}Password may contains 6 - 32 characters");
+		}
+			new regex:rg_passwordcheck = regex_new("^[a-zA-z0-9]{1,}$");
+			if (regex_check(inputtext, rg_passwordcheck))
+			{
+   				new salt[11];
+		    	for(new i; i < 11; i++)
+					{
+					    salt[i] = random (43) + 48;
+					}
+					salt[10] = 0;
+					SHA256_PassHash(inputtext, salt, player_info[playerid][PASSWORD], 65);
+					strmid(player_info[playerid][SALT], salt, 0, 11, 11);
+					new string[51+(-2+32)];
+					format(string, sizeof(string),	"[SYSTEM]{ffffff} Your new password: %s", inputtext);
+					SCM(playerid, COLOR_ORANGE, string);
+					SCM(playerid, COLOR_ORANGE, "[SYSTEM]{ffffff} Save your password and put it somewhere safe");
+					static const fmt_query[] = "UPDATE `players` SET `password` = '%s', `salt` = '%s' WHERE `id` = '%d'";
+					new query[sizeof(fmt_query)+(-2+64)+(-2+10)+(-2+8)];
+					format(query, sizeof(query), fmt_query, player_info[playerid][PASSWORD], player_info[playerid][SALT], player_info[playerid][ID]);
+					mysql_query(dbHandle, query, false);
+			}
+			else
+			{
+		SPD(playerid, DLG_NEWPASS1, DIALOG_STYLE_INPUT, "{056600}Password change.... launched", "{056600}Enter your previous {ffffff}password {056600}in the line below:", "Continue", "Close");
+		regex_delete(rg_passwordcheck);
+		return SCM(playerid, COLOR_RED, "[WARNING]{FFFFFF} Password may contains only 6 - 32 characters");
+			}
+			regex_delete(rg_passwordcheck);
+			}
+		}
   }
+ return 1;
+ }
   forward PlayerLogin(playerid);
   public PlayerLogin(playerid)
   {
@@ -558,20 +753,38 @@ return 1;
 	cache_get_value_name(0, "email", player_info[playerid][EMAIL], 65);
 	cache_get_value_name(0, "regdata", player_info[playerid][REGDATA], 13);
 	cache_get_value_name(0, "regip", player_info[playerid][REGIP],16);
-	cache_get_value_name(0, "admin", player_info[playerid][ADMIN], 1);
-	cache_get_value_name(0, "cash", player_info[playerid][CASH]);
+	cache_get_value_name_int (0, "admin", player_info[playerid][ADMIN]);
+	cache_get_value_name_int (0, "cash", player_info[playerid][CASH]);
+	cache_get_value_name_int (0, "score", player_info[playerid][SCORE]);
+	cache_get_value_name_int (0, "mins", player_info[playerid][MINS]);
 
 	TogglePlayerSpectating(playerid, 0);
   	
 	SetPVarInt(playerid, "logged", 1);
-	SetSpawnInfo(playerid, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-   SpawnPlayer(playerid);
    }
   }
 //==============================================================================
 public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 {
 	return 1;
+}
+public OnPlayerClickMap(playerid, Float:fX, Float:fY, Float:fZ)
+{
+	if(player_info[playerid][ADMIN] >= 4)
+	{
+	if(GetPlayerState(playerid) == PLAYER_STATE_DRIVER)
+	{
+	SetVehiclePos(GetPlayerVehicleID(playerid), fX, fY, fZ);
+	PutPlayerInVehicle(playerid, GetPlayerVehicleID(playerid), 0);
+	}
+	else
+	{
+	SetPlayerPos(playerid, fX, fY, fZ);
+	}
+	SetPlayerVirtualWorld(playerid, 0);
+	SetPlayerInterior(playerid, 0);
+ }
+ return 1;
 }
 
 stock GiveMoney(playerid, cash)
@@ -581,7 +794,35 @@ stock GiveMoney(playerid, cash)
 	new query[sizeof(fmt_query)+(-2+9)+(-2+8)];
 	format(query, sizeof(query), fmt_query, player_info[playerid][CASH], player_info[playerid][ID]);
 	mysql_query(dbHandle, query);
-	GivePlayerMoney(playerid, cash);
-return 1;
+}
+stock GiveScore(playerid, score)
+{
+player_info[playerid][SCORE] += score;
+SetPlayerScore(playerid, player_info[playerid][SCORE]);
+	static const fmt_query[] = "UPDATE `players` SET `score` = '%d' WHERE `id` = '%d'";
+	new query[sizeof(fmt_query)+(-2+9)+(-2+8)];
+	format(query, sizeof(query), fmt_query, player_info[playerid][SCORE], player_info[playerid][ID]);
+	mysql_query(dbHandle, query);
+}
+CMD:menu(playerid)
+{
+	SPD(playerid, DLG_MAINMENU, DIALOG_STYLE_LIST, "{dba212}Main Menu",
+	"{dba215}[1] {ffffff}Account stats\n\
+	{dba215}[2] {ffffff}Change password",
+	"Enter", "Exit");
+	return 1;
+}
+alias:menu("mn", "mm", "me");
+stock ShowStats(playerid)
+{
+new dialog[256];
+format (dialog, sizeof(dialog),
+"{FFFFFF}Name of target:\t\t{dba215}%s\n\
+{FFFFFF}Cash on hands:\t\t{dba215}%d {6ef83c}$\n\
+{FFFFFF}Score for destruction:\t{dba215}%d {ffffff}Points\n",
+player_info[playerid][NAME],
+player_info[playerid][CASH],
+player_info[playerid][SCORE]);
+SPD(playerid, DLG_STATS, DIALOG_STYLE_MSGBOX, "{dba215}Account Stats", dialog, "Back", "Close");
 }
 
